@@ -9,6 +9,12 @@ import {
   Scissors, Dumbbell, HeartPulse, Send, MessageSquare,
   Mail, Phone, MapPin, Menu, X, Activity, Package,
 } from "lucide-react";
+import AxcladeHomeHero from "./components/AxcladeHomeHero";
+import solutionsHeroComposition from "../../Public/Assets/solutions-hero-composition.png";
+import axcladeLogo from "../../Public/Assets/branding/axclade-logo.png";
+import axcladeIcon from "../../Public/Assets/branding/axclade-icon.png";
+import axcladeFinalIcon from "../../Public/Assets/branding/axclade-final-icon.png";
+import axcladeLogoObject from "../../Public/Assets/branding/axclade-logo-object.png";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -135,6 +141,29 @@ const GLOBAL_CSS = `
   .ax-hero-h1 { font-size: clamp(2.2rem, 8vw, 4.4rem); line-height: 1.06; }
   .ax-h2      { font-size: clamp(1.7rem, 5vw, 2.9rem); line-height: 1.1; }
   .ax-sub     { font-size: clamp(.9rem, 3vw, 1.1rem);  line-height: 1.6; }
+  @keyframes ax-orbit-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes ax-orbit-spin-rev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+  .axclade-hero-ring-a { animation: ax-orbit-spin 28s linear infinite; }
+  .axclade-hero-ring-b { animation: ax-orbit-spin-rev 34s linear infinite; }
+  .axclade-hero-ring-c { animation: ax-orbit-spin 42s linear infinite; }
+  .axclade-hero-dotmask {
+    background-image: radial-gradient(circle, rgba(8,25,63,.11) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .axclade-hero-card {
+    background: rgba(255,255,255,.82);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.75);
+    box-shadow: 0 24px 60px rgba(8,25,63,.12), inset 0 1px 0 rgba(255,255,255,.95);
+  }
+  .axclade-hero-bubble {
+    background: linear-gradient(160deg, rgba(255,255,255,.82), rgba(219,233,255,.38));
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(255,255,255,.72);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 16px 30px rgba(67,97,238,.1);
+  }
 
   /* ── Reduced motion ─────────────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
@@ -160,14 +189,43 @@ function useTick(ms=2000){
 // ═══════════════════════════════════════════════════════════════════════════════
 // ATOMS
 // ═══════════════════════════════════════════════════════════════════════════════
-function Logo({ dark=false }:{ dark?:boolean }){
+function AxcladeLogoImage({
+  className = "",
+  alt = "Axclade",
+  style,
+  src,
+}:{
+  className?: string;
+  alt?: string;
+  style?: React.CSSProperties;
+  src?: string;
+}){
+  return <img src={src ?? axcladeLogo} alt={alt} className={className} style={style}/>;
+}
+
+function Logo({ dark=false, context="header" }:{ dark?:boolean; context?:"header"|"footer" }){
+  const isFooter=context==="footer";
   return(
-    <div className="flex items-center gap-2 select-none cursor-pointer">
-      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-        style={{background:`linear-gradient(140deg,${T.red} 0%,#FF7A70 100%)`,boxShadow:`0 4px 16px ${T.red}50`}}>
-        <span style={{color:"#fff",fontFamily:FONT,fontWeight:800,fontSize:15,lineHeight:1}}>A</span>
+    <div className="select-none cursor-pointer">
+      <div
+        className="inline-flex items-center rounded-xl"
+        style={dark ? {
+          background:isFooter ? "transparent" : "rgba(255,255,255,.98)",
+          border:isFooter ? "none" : "1px solid rgba(255,255,255,.16)",
+          boxShadow:isFooter ? "none" : "0 12px 28px rgba(0,0,0,.14)",
+          padding:isFooter ? "0" : "7px 10px",
+        } : undefined}
+      >
+        <AxcladeLogoImage
+          src={isFooter ? axcladeLogoObject : undefined}
+          className={isFooter
+            ? "w-auto object-contain"
+            : "w-auto object-contain"}
+          style={isFooter
+            ? { height: 42, maxWidth: 220 }
+            : { height: 48, maxWidth: 264 }}
+        />
       </div>
-      <span style={{fontFamily:FONT,fontWeight:800,fontSize:18,color:dark?"#fff":T.navy,letterSpacing:"-.3px"}}>Axclade</span>
     </div>
   );
 }
@@ -260,7 +318,7 @@ function Nav({ current, go }:{current:Page;go:(p:Page)=>void}){
         borderBottom:scrolled?`1px solid ${T.border}`:"1px solid transparent",
         boxShadow:scrolled?"0 2px 24px rgba(10,19,48,.07)":"none"}}>
       <div className="max-w-[1380px] mx-auto px-5 flex items-center justify-between" style={{height:58}}>
-        <button onClick={()=>nav("home")}><Logo/></button>
+        <button onClick={()=>nav("home")}><Logo context="header"/></button>
         <nav className="hidden lg:flex items-center gap-0.5">
           {NAV_ITEMS.map(n=>(
             <button key={n.page} onClick={()=>nav(n.page)}
@@ -318,7 +376,7 @@ function Footer({ go }:{go:(p:Page)=>void}){
       <div className="max-w-[1280px] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 pb-12 border-b" style={{borderColor:"rgba(255,255,255,.08)"}}>
           <div className="col-span-2">
-            <Logo dark/>
+            <Logo dark context="footer"/>
             <p className="mt-4 text-sm leading-relaxed" style={{color:"rgba(255,255,255,.38)",fontFamily:FONT,maxWidth:260}}>
               Axclade helps businesses build stronger brands, generate better leads, automate operations, and scale with smart digital systems.
             </p>
@@ -443,8 +501,9 @@ function HeroVisual(){
           style={{background:`linear-gradient(145deg,${T.space},${T.navy})`,
             boxShadow:`0 20px 64px ${T.navy}50,inset 0 1px 0 rgba(255,255,255,.08)`,
             border:`1.5px solid rgba(255,255,255,.07)`}}>
-          <div style={{fontFamily:FONT,fontWeight:900,fontSize:52,color:T.red,lineHeight:1}}>A</div>
-          <div style={{fontFamily:FONT,fontWeight:700,fontSize:10,color:"rgba(255,255,255,.4)",letterSpacing:"0.2em",marginTop:4}}>AXCLADE</div>
+          <div className="rounded-2xl px-4 py-3" style={{background:"rgba(255,255,255,.98)"}}>
+            <AxcladeLogoImage className="h-8 w-auto max-w-[132px] object-contain"/>
+          </div>
           <div className="absolute top-0 left-4 right-4 h-px" style={{background:"linear-gradient(to right,transparent,rgba(255,255,255,.12),transparent)"}}/>
         </div>
         <div className="w-36 h-4 rounded-full mt-1" style={{background:T.navy,filter:"blur(16px)",opacity:.4}}/>
@@ -636,86 +695,14 @@ function HomePage({ go }:{go:(p:Page)=>void}){
   const nav=(p:Page)=>{ go(p); window.scrollTo(0,0); };
   return(
     <>
-      {/* HERO */}
-      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden"
-        style={{background:`linear-gradient(155deg,${T.soft} 0%,#EAEEf8 55%,#E5EAFF 100%)`}}>
-        <div className="absolute inset-0 pointer-events-none opacity-40"
-          style={{backgroundImage:`radial-gradient(circle,${T.navy}12 1px,transparent 1px)`,backgroundSize:"38px 38px"}}/>
-        <Glow color={T.red} size={550} className="-top-40 -right-24"/>
-        <Glow color={T.blue} size={440} className="-bottom-28 -left-16"/>
-        <div className="max-w-[1280px] mx-auto px-6 py-24 w-full grid lg:grid-cols-2 gap-14 items-center">
-          <motion.div initial={{opacity:0,x:-28}} animate={{opacity:1,x:0}} transition={{duration:.7}}>
-            <div className="inline-flex items-center gap-2 rounded-full mb-7"
-              style={{padding:"7px 16px",background:"rgba(255,255,255,.8)",backdropFilter:"blur(12px)",border:`1px solid ${T.border}`,boxShadow:"0 2px 14px rgba(10,19,48,.06)"}}>
-              <Activity size={12} style={{color:T.blue}}/>
-              <span style={{fontFamily:FONT,fontWeight:700,fontSize:12,color:T.navy}}>AI-Driven Digital Growth Agency</span>
-              <span className="w-1.5 h-1.5 rounded-full" style={{background:T.red}}/>
-            </div>
-            <h1 style={{fontFamily:FONT,fontWeight:800,fontSize:"clamp(2.8rem,5.5vw,4.4rem)",color:T.navy,lineHeight:1.06,letterSpacing:"-.8px"}}>
-              Smart Digital Growth<br/>Solutions For{" "}
-              <span style={{color:T.red}}>Modern Businesses</span>
-            </h1>
-            <p className="mt-6 text-lg leading-relaxed" style={{fontFamily:FONT,color:T.muted,maxWidth:520}}>
-              Helping businesses generate more leads, build stronger brands, improve visibility, and scale through strategic digital marketing systems.
-            </p>
-            <p className="mt-3 text-sm" style={{fontFamily:FONT,color:T.muted}}>
-              Axclade combines digital marketing, branding, content, advertising, automation, and technology to help businesses grow smarter and faster.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
-              <BtnPrimary onClick={()=>nav("contact")} large glow>Book Free Growth Consultation <ArrowRight size={15}/></BtnPrimary>
-              <BtnOutline onClick={()=>nav("packages")}>Explore Growth Packages</BtnOutline>
-            </div>
-            <div className="mt-7 flex flex-wrap gap-2">
-              {["Websites","Marketing","Automation","Apps","Growth Systems"].map(t=>(
-                <span key={t} style={{fontFamily:FONT,fontWeight:600,fontSize:12,color:T.navy,
-                  padding:"6px 14px",background:T.white,border:`1px solid ${T.border}`,borderRadius:99,
-                  boxShadow:"0 1px 4px rgba(10,19,48,.06)"}}>{t}</span>
-              ))}
-            </div>
-            <p className="mt-6 text-xs" style={{fontFamily:FONT,color:T.muted,borderLeft:`2px solid ${T.red}`,paddingLeft:12}}>
-              We help businesses turn digital presence into measurable growth through smart marketing systems.
-            </p>
-          </motion.div>
-          <motion.div initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} transition={{duration:.8,delay:.1}}>
-            <HeroVisual/>
-          </motion.div>
-        </div>
-      </section>
+      <AxcladeHomeHero
+        onPrimaryAction={() => nav("contact")}
+        onSecondaryAction={() => nav("packages")}
+      />
 
-      {/* Trust marquee */}
-      <section className="py-5 border-y overflow-hidden" style={{background:T.white,borderColor:T.border}}>
-        <div className="flex items-center gap-12" style={{animation:"marquee 22s linear infinite",width:"max-content"}}>
-          {[...["Google","Meta","Shopify","Webflow","AWS","HubSpot","Stripe","Notion","Figma","Vercel"],
-            ...["Google","Meta","Shopify","Webflow","AWS","HubSpot","Stripe","Notion","Figma","Vercel"]].map((b,i)=>(
-            <span key={i} style={{fontFamily:FONT,fontWeight:800,fontSize:13,color:T.navy,opacity:.22,letterSpacing:".06em",whiteSpace:"nowrap" as const}}>{b}</span>
-          ))}
-        </div>
-      </section>
-
-      {/* Stats glass strip */}
-      <section className="px-6 -mt-8 relative z-10">
-        <div className="max-w-[1280px] mx-auto">
-          <Glass className="px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-6">
-            <p style={{fontFamily:FONT,fontWeight:700,fontSize:13,color:T.muted,flexShrink:0}}>Trusted by growing businesses</p>
-            <div className="flex flex-wrap gap-6 justify-center">
-              {["Google","Meta","Shopify","Webflow","AWS","HubSpot"].map(b=>(
-                <span key={b} style={{fontFamily:FONT,fontWeight:800,fontSize:13,color:T.navy,opacity:.28}}>{b}</span>
-              ))}
-            </div>
-            <div className="flex gap-8 flex-shrink-0 flex-wrap justify-center">
-              {[["120+","Projects"],["95%","Retention"],["4.9★","Rating"]].map(([v,l])=>(
-                <div key={l} className="text-center">
-                  <div style={{fontFamily:FONT,fontWeight:800,fontSize:18,color:T.navy}}>{v}</div>
-                  <div style={{fontFamily:FONT,fontSize:11,color:T.muted,marginTop:2}}>{l}</div>
-                </div>
-              ))}
-            </div>
-          </Glass>
-        </div>
-      </section>
 
       {/* What we help achieve */}
-      <section className="py-28 px-6 mt-8" style={{background:T.white}}>
+      <section className="py-24 px-6 mt-0" style={{background:T.white}}>
         <div className="max-w-[1280px] mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
             <motion.div initial={{opacity:0,x:-20}} whileInView={{opacity:1,x:0}} viewport={{once:true}}>
@@ -802,41 +789,78 @@ function HomePage({ go }:{go:(p:Page)=>void}){
       </section>
 
       {/* Solutions mosaic */}
-      <section className="py-28 px-6" style={{background:T.white}}>
+      <section className="py-24 px-6" style={{background:T.white}}>
         <div className="max-w-[1280px] mx-auto">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-14">
-            <div>
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+            <div className="max-w-[760px]">
               <Eyebrow text="Digital Solutions"/>
               <SH>Technology Solutions That<br/><span style={{color:T.red}}>Support Business Growth</span></SH>
             </div>
             <BtnOutline onClick={()=>nav("solutions")}>Explore All Solutions <ArrowRight size={13}/></BtnOutline>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            className="rounded-[34px] p-4 md:p-5 lg:p-6"
+            style={{
+              background:"linear-gradient(180deg,#FFFFFF 0%, #F8FAFF 100%)",
+              border:`1px solid ${T.border}`,
+              boxShadow:"0 24px 72px rgba(10,19,48,.08)",
+            }}
+          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 auto-rows-[220px]">
             {SOLUTIONS.map((s,i)=>{
               const navy=s.col==="navy", red=s.col==="red", dark=navy||red;
+              const cardClass =
+                i===0 ? "lg:col-span-8" :
+                i===1 ? "lg:col-span-4" :
+                i===4 ? "lg:col-span-12" :
+                "lg:col-span-6";
               return(
                 <motion.div key={s.title} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*.08}}
-                  whileHover={{y:-4}} onClick={()=>nav("solutions")}
-                  className={`relative rounded-3xl p-7 flex flex-col gap-5 overflow-hidden cursor-pointer ${s.span}`}
-                  style={{background:navy?T.navy:red?T.red:T.white,border:dark?"none":`1px solid ${T.border}`,
-                    boxShadow:navy?`0 16px 56px ${T.navy}28`:red?`0 16px 48px ${T.red}28`:"0 2px 16px rgba(10,19,48,.04)"}}>
-                  {dark&&<div className="absolute -bottom-10 -right-10 w-36 h-36 rounded-full pointer-events-none blur-2xl"
-                    style={{background:navy?T.blue:"#fff",opacity:.12}}/>}
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                    style={{background:navy?`${T.red}28`:red?"rgba(255,255,255,.22)":`${T.navy}09`,color:navy?T.red:dark?"#fff":T.blue}}>
+                  whileHover={{y:-6,scale:1.01}} onClick={()=>nav("solutions")}
+                  className={`relative rounded-[30px] p-7 md:p-8 flex flex-col overflow-hidden cursor-pointer ${cardClass}`}
+                  style={{
+                    background:navy
+                      ? "linear-gradient(135deg, #0B163F 0%, #121C4A 100%)"
+                      : red
+                        ? "linear-gradient(135deg, #FF5A52 0%, #FF463D 100%)"
+                        : "linear-gradient(180deg, #FFFFFF 0%, #F9FBFF 100%)",
+                    border:dark?"1px solid rgba(255,255,255,.06)":`1px solid ${T.border}`,
+                    boxShadow:navy
+                      ? `0 24px 60px ${T.navy}24`
+                      : red
+                        ? `0 24px 54px ${T.red}22`
+                        : "0 10px 30px rgba(10,19,48,.05)",
+                  }}>
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: dark
+                        ? "linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,0) 55%)"
+                        : "linear-gradient(180deg, rgba(255,255,255,.9) 0%, rgba(255,255,255,0) 38%)",
+                    }}/>
+                  {dark&&<div className="absolute -bottom-12 -right-10 w-40 h-40 rounded-full pointer-events-none blur-3xl"
+                    style={{background:navy?T.blue:"#fff",opacity:.14}}/>}
+                  {!dark&&<div className="absolute -top-8 right-10 w-24 h-24 rounded-full pointer-events-none blur-2xl"
+                    style={{background:`${T.blue}12`}}/>}
+                  <div className="relative z-10 w-12 h-12 rounded-[18px] flex items-center justify-center mb-6"
+                    style={{background:navy?`${T.red}22`:red?"rgba(255,255,255,.18)":`${T.blue}10`,color:navy?T.red:dark?"#fff":T.blue}}>
                     {s.icon}
                   </div>
-                  <div>
-                    <h3 style={{fontFamily:FONT,fontWeight:800,fontSize:18,color:dark?"#fff":T.navy,marginBottom:8}}>{s.title}</h3>
-                    <p style={{fontFamily:FONT,fontSize:13,color:dark?"rgba(255,255,255,.54)":T.muted,lineHeight:1.6}}>{s.desc}</p>
+                  <div className="relative z-10 max-w-[92%]">
+                    <h3 style={{fontFamily:FONT,fontWeight:800,fontSize:i===0?28:22,color:dark?"#fff":T.navy,marginBottom:10,letterSpacing:"-.4px",lineHeight:1.08}}>
+                      {s.title}
+                    </h3>
+                    <p style={{fontFamily:FONT,fontSize:14,color:dark?"rgba(255,255,255,.62)":T.muted,lineHeight:1.65,maxWidth:i===4?520:440}}>
+                      {s.desc}
+                    </p>
                   </div>
-                  <div className="mt-auto flex items-center gap-1.5 text-sm font-bold"
-                    style={{color:navy?T.red:dark?"rgba(255,255,255,.8)":T.navy,fontFamily:FONT}}>
+                  <div className="mt-auto relative z-10 flex items-center gap-2 text-sm font-bold"
+                    style={{color:navy?T.red:dark?"rgba(255,255,255,.84)":T.navy,fontFamily:FONT}}>
                     Explore <ArrowUpRight size={13}/>
                   </div>
                 </motion.div>
               );
             })}
+          </div>
           </div>
         </div>
       </section>
@@ -1067,12 +1091,6 @@ function PricingCard({ tier, catCol, delay, go }:{
           filter:"blur(80px)",
           opacity:hovered?.35:.14,
         }}/>
-
-      {/* Gradient top accent on popular */}
-      {isPop&&(
-        <div className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none"
-          style={{background:"linear-gradient(90deg,#FF4E45,#4361EE)",borderRadius:"32px 32px 0 0"}}/>
-      )}
 
       {/* Cursor-following radial glow */}
       <div className="absolute inset-0 pointer-events-none rounded-[32px] overflow-hidden"
@@ -1963,6 +1981,33 @@ function SolHeroVisual(){
   );
 }
 
+function SolutionsHeroComposition(){
+  return(
+    <div className="relative w-full h-[560px] flex items-center justify-center mt-8 lg:mt-0">
+      <Glow color={T.red} size={320} className="top-1/2 right-16 -translate-y-1/2"/>
+      <Glow color={T.blue} size={260} className="bottom-10 left-8"/>
+      <motion.div
+        initial={{opacity:0,scale:.96,y:14}}
+        animate={{opacity:1,scale:1,y:0}}
+        transition={{duration:.7,delay:.08}}
+        className="relative z-10 w-[130%] max-w-[1040px] -ml-[8%] pointer-events-none"
+      >
+        <img
+          src={solutionsHeroComposition}
+          alt="Business growth solutions composition"
+          style={{
+            width:"100%",
+            objectFit:"contain",
+            filter:"drop-shadow(0 34px 72px rgba(10,19,48,.12))",
+            WebkitMaskImage:"radial-gradient(circle at center, rgba(0,0,0,1) 56%, rgba(0,0,0,.92) 68%, rgba(0,0,0,.42) 82%, transparent 96%)",
+            maskImage:"radial-gradient(circle at center, rgba(0,0,0,1) 56%, rgba(0,0,0,.92) 68%, rgba(0,0,0,.42) 82%, transparent 96%)",
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+}
+
 function SolutionsPage({ go }:{go:(p:Page)=>void}){
   return(
     <>
@@ -1998,7 +2043,7 @@ function SolutionsPage({ go }:{go:(p:Page)=>void}){
             </div>
           </motion.div>
           <motion.div initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} transition={{duration:.65,delay:.1}}>
-            <SolHeroVisual/>
+            <SolutionsHeroComposition/>
           </motion.div>
         </div>
       </section>
@@ -3311,10 +3356,10 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
 
         <div className="max-w-[1280px] mx-auto relative z-10">
           <motion.div initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} transition={{duration:.7}}
-            className="text-center max-w-3xl mx-auto pb-16">
+            className="text-center max-w-5xl mx-auto pb-16">
             <Chip color={T.red}><Sparkles size={10}/> About Axclade</Chip>
-            <h1 style={{fontFamily:FONT,fontWeight:800,fontSize:"clamp(2.4rem,5.5vw,4rem)",color:T.navy,lineHeight:1.06,letterSpacing:"-.8px",marginTop:16}}>
-              A Digital Growth Agency Built<br/>For The <span style={{color:T.red}}>New Era Of Business</span>
+            <h1 style={{fontFamily:FONT,fontWeight:800,fontSize:"clamp(2.2rem,4.9vw,3.7rem)",color:T.navy,lineHeight:1.08,letterSpacing:"-.8px",marginTop:16}}>
+              A Digital Growth Agency<br/>Built For The <span style={{color:T.red}}>New Era Of Business</span>
             </h1>
             <p className="mt-6 text-lg leading-relaxed" style={{fontFamily:FONT,color:T.muted}}>
               Axclade is a modern digital technology agency helping businesses grow through smart websites, digital marketing, AI automation, branding, apps, and scalable digital systems.
@@ -3323,26 +3368,19 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
 
           {/* Giant brand mark — visual anchor */}
           <motion.div initial={{opacity:0,scale:.9,y:20}} animate={{opacity:1,scale:1,y:0}} transition={{duration:.8,delay:.2}}
-            className="flex justify-center pb-0">
+            className="flex justify-center -mt-3 pb-0">
             <div className="relative">
-              {/* Outer glow ring */}
-              <div className="absolute -inset-8 rounded-full opacity-20 blur-2xl"
-                style={{background:`radial-gradient(circle,${T.red},${T.blue})`}}/>
               {/* Mark */}
-              <div className="relative w-48 h-48 rounded-[40px] flex flex-col items-center justify-center shadow-2xl"
-                style={{background:`linear-gradient(145deg,${T.space},${T.navy})`,
-                  border:"2px solid rgba(255,255,255,.08)",
-                  boxShadow:`0 32px 96px ${T.navy}50,inset 0 1px 0 rgba(255,255,255,.1)`}}>
-                <div style={{fontFamily:FONT,fontWeight:900,fontSize:80,color:T.red,lineHeight:.9}}>A</div>
-                <div style={{fontFamily:FONT,fontWeight:800,fontSize:11,color:"rgba(255,255,255,.35)",letterSpacing:".24em",marginTop:6}}>AXCLADE</div>
-                {/* Corner dots */}
-                <div className="absolute top-4 left-4 w-2 h-2 rounded-full" style={{background:T.red,opacity:.6}}/>
-                <div className="absolute top-4 right-4 w-2 h-2 rounded-full" style={{background:T.blue,opacity:.6}}/>
-                <div className="absolute bottom-4 left-4 w-2 h-2 rounded-full" style={{background:T.blue,opacity:.6}}/>
-                <div className="absolute bottom-4 right-4 w-2 h-2 rounded-full" style={{background:T.red,opacity:.6}}/>
+              <div className="relative w-56 h-56 flex items-center justify-center">
+                <img
+                  src={axcladeFinalIcon}
+                  alt="Axclade final icon"
+                  className="w-full h-full object-contain"
+                  style={{filter:"none"}}
+                />
               </div>
               {/* Floating caption */}
-              <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 whitespace-nowrap text-center">
+              <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap text-center">
                 <div style={{fontFamily:FONT,fontWeight:700,fontSize:12,color:T.muted,letterSpacing:".12em",textTransform:"uppercase" as const}}>
                   Smart Digital Growth Solutions
                 </div>
@@ -3480,12 +3518,10 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
             <motion.div initial={{opacity:0,scale:.9}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{duration:.6,delay:.15}}
               className="text-center flex flex-col items-center gap-4">
               <div className="text-6xl font-black" style={{fontFamily:FONT,color:"rgba(255,255,255,.12)"}}>+</div>
-              <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
-                style={{background:`linear-gradient(135deg,${T.red},#4361EE)`,boxShadow:`0 0 48px ${T.red}50`}}>
-                <span style={{fontFamily:FONT,fontWeight:900,fontSize:36,color:"#fff",lineHeight:1}}>A</span>
+              <div className="flex items-center justify-center">
+                <AxcladeLogoImage src={axcladeLogoObject} className="h-12 w-auto max-w-[220px] object-contain"/>
               </div>
               <div>
-                <div style={{fontFamily:FONT,fontWeight:800,fontSize:22,color:"#fff"}}>Axclade</div>
                 <div style={{fontFamily:FONT,fontSize:12,color:"rgba(255,255,255,.38)",marginTop:3,letterSpacing:".1em",textTransform:"uppercase" as const}}>
                   Structure + Momentum
                 </div>
@@ -3689,9 +3725,13 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
 
               <div className="relative z-10">
                 {/* Brand mark small */}
-                <div className="w-14 h-14 rounded-2xl mx-auto mb-8 flex items-center justify-center"
-                  style={{background:`linear-gradient(135deg,${T.red},#4361EE)`,boxShadow:`0 0 40px ${T.red}50`}}>
-                  <span style={{fontFamily:FONT,fontWeight:900,fontSize:28,color:"#fff",lineHeight:1}}>A</span>
+                <div className="w-fit mx-auto mb-8">
+                  <img
+                    src={axcladeIcon}
+                    alt="Axclade icon"
+                    className="h-14 w-14 object-contain"
+                    style={{filter:`drop-shadow(0 10px 24px ${T.red}22)`}}
+                  />
                 </div>
 
                 <p style={{fontFamily:FONT,fontWeight:800,fontSize:"clamp(1.6rem,3.5vw,2.6rem)",color:"#fff",lineHeight:1.2,letterSpacing:"-.4px"}}>
