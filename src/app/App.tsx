@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "motion/react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import {
   ArrowRight, ArrowUpRight, Star, Check, ChevronDown,
@@ -15,6 +15,8 @@ import axcladeLogo from "../../Public/Assets/branding/axclade-logo.png";
 import axcladeIcon from "../../Public/Assets/branding/axclade-icon.png";
 import axcladeFinalIcon from "../../Public/Assets/branding/axclade-final-icon.png";
 import axcladeLogoObject from "../../Public/Assets/branding/axclade-logo-object.png";
+
+const LazyAxcladeChatbot = lazy(() => import("./components/chatbot/AxcladeChatbot"));
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -32,6 +34,69 @@ const T = {
 const FONT = "'Plus Jakarta Sans', sans-serif";
 
 type Page = "home"|"packages"|"solutions"|"industries"|"process"|"case-studies"|"about"|"contact";
+
+const SITE_URL = "https://axclade.com";
+
+const PAGE_META: Record<Page, { title: string; description: string; path: string }> = {
+  home: {
+    title: "Axclade | Smart Digital Growth Solutions for Modern Businesses",
+    description: "Axclade helps modern businesses grow through high-converting websites, digital systems, AI automation, branding, and scalable growth strategies.",
+    path: "/",
+  },
+  packages: {
+    title: "Growth Packages | Axclade",
+    description: "Explore Axclade growth packages built for lead generation, brand visibility, performance marketing, and long-term digital growth.",
+    path: "/packages",
+  },
+  solutions: {
+    title: "Custom Digital Solutions | Axclade",
+    description: "Discover Axclade custom solutions including websites, mobile apps, AI automation, SaaS product development, and tailored software systems.",
+    path: "/solutions",
+  },
+  industries: {
+    title: "Industries We Serve | Axclade",
+    description: "Axclade creates digital growth systems for restaurants, clinics, salons, fitness brands, e-commerce stores, SaaS companies, and more.",
+    path: "/industries",
+  },
+  process: {
+    title: "Our Process | Axclade",
+    description: "See how Axclade plans, designs, builds, launches, and optimizes digital growth systems for ambitious businesses.",
+    path: "/process",
+  },
+  "case-studies": {
+    title: "Case Studies | Axclade",
+    description: "Review Axclade case studies showing measurable growth across websites, digital campaigns, software, and customer acquisition systems.",
+    path: "/case-studies",
+  },
+  about: {
+    title: "About Axclade | Digital Growth Partner",
+    description: "Learn about Axclade, our digital growth philosophy, and how we help brands scale through strategy, design, systems, and execution.",
+    path: "/about",
+  },
+  contact: {
+    title: "Contact Axclade | Book a Growth Consultation",
+    description: "Contact Axclade to discuss your website, software, SaaS, AI automation, or digital growth project and book a free consultation.",
+    path: "/contact",
+  },
+};
+
+function pageToHash(page: Page) {
+  return page === "home" ? "#/" : `#/${PAGE_META[page].path.slice(1)}`;
+}
+
+function hashToPage(hash: string, fallback: Page = "home"): Page {
+  if (hash && !hash.startsWith("#/")) {
+    return fallback;
+  }
+
+  const normalized = hash.replace(/^#/, "") || "/";
+  const slug = normalized === "/" ? "" : normalized.replace(/^\//, "");
+  const match = (Object.keys(PAGE_META) as Page[]).find((page) => {
+    if (page === "home") return slug === "";
+    return PAGE_META[page].path.slice(1) === slug;
+  });
+  return match ?? fallback;
+}
 
 const sparkData = [{v:80},{v:120},{v:95},{v:160},{v:140},{v:210},{v:185},{v:260}];
 
@@ -166,12 +231,57 @@ const GLOBAL_CSS = `
   }
 
   /* ── Reduced motion ─────────────────────────────────────── */
+  .ax-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .ax-no-scrollbar::-webkit-scrollbar { display: none; }
+  .ax-section-shell { content-visibility: auto; contain-intrinsic-size: 900px; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: .01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: .01ms !important;
     }
+  }
+`;
+
+const CURSOR_CSS = `
+  .ax-custom-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .ax-custom-cursor-dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #FF4E45;
+    box-shadow: 0 0 16px rgba(255,78,69,.5);
+  }
+  .ax-custom-cursor-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1.75px solid rgba(255,78,69,.7);
+    background: radial-gradient(circle, rgba(255,78,69,.12) 0%, rgba(255,78,69,.03) 42%, rgba(255,78,69,0) 72%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.16) inset, 0 0 28px rgba(255,78,69,.22);
+    animation: ax-cursor-pulse 1.45s ease-in-out infinite;
+    transform-origin: center;
+    translate: -50% -50%;
+  }
+  @keyframes ax-cursor-pulse {
+    0%, 100% { transform: scale(1); opacity: .78; }
+    50% { transform: scale(1.18); opacity: 1; }
+  }
+  @media (pointer: fine) {
+    html, body, body * { cursor: none !important; }
   }
 `;
 
@@ -200,7 +310,30 @@ function AxcladeLogoImage({
   style?: React.CSSProperties;
   src?: string;
 }){
-  return <img src={src ?? axcladeLogo} alt={alt} className={className} style={style}/>;
+  return <AppImage src={src ?? axcladeLogo} alt={alt} className={className} style={style} loading="eager" decoding="sync"/>;
+}
+
+function AppImage({
+  className = "",
+  loading = "lazy",
+  decoding = "async",
+  fetchPriority,
+  onLoad,
+  ...rest
+}: React.ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      {...rest}
+      className={className}
+      loading={loading}
+      decoding={decoding}
+      fetchPriority={fetchPriority}
+      onLoad={(event) => {
+        event.currentTarget.classList.add("loaded");
+        onLoad?.(event);
+      }}
+    />
+  );
 }
 
 function Logo({ dark=false, context="header" }:{ dark?:boolean; context?:"header"|"footer" }){
@@ -626,8 +759,6 @@ function PremiumFeatureCards(){
                   border:"1.5px solid rgba(255,255,255,.07)",boxShadow:"0 20px 60px rgba(0,0,0,.45)",minHeight:300}}>
                 <div className="absolute inset-0 rounded-[40px] pointer-events-none"
                   style={{background:"linear-gradient(180deg,rgba(255,255,255,.05) 0%,transparent 60%)"}}/>
-                <div className="absolute top-0 left-8 right-8 h-px rounded-full"
-                  style={{background:"rgba(255,255,255,.08)"}}/>
                 {/* Icon container */}
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.08)"}}>
@@ -665,7 +796,7 @@ const SOLUTIONS=[
   {icon:<Smartphone size={26}/>,title:"App Development",desc:"iOS & Android apps for modern businesses.",col:"red",span:""},
   {icon:<Bot size={26}/>,title:"AI Automation",desc:"Workflows that work 24/7 without your team.",col:"white",span:""},
   {icon:<Layers size={26}/>,title:"Brand & UI/UX",desc:"Identity systems that command instant trust.",col:"white",span:""},
-  {icon:<Cpu size={26}/>,title:"SaaS Development",desc:"Turn ideas into scalable software products.",col:"white",span:"lg:col-span-2"},
+  {icon:<AppImage src={axcladeIcon} alt="Axclade icon" className="h-7 w-7 object-contain" loading="eager" decoding="sync" />,title:"SaaS Development",desc:"Turn ideas into scalable software products.",col:"white",span:"lg:col-span-2"},
 ];
 
 const INDUSTRIES=[
@@ -948,7 +1079,7 @@ function HomePage({ go }:{go:(p:Page)=>void}){
                 className="group rounded-3xl overflow-hidden cursor-pointer"
                 style={{background:T.white,border:`1px solid ${T.border}`,boxShadow:"0 4px 24px rgba(10,19,48,.06)"}}>
                 <div className="relative h-44 bg-gray-100 overflow-hidden">
-                  <img src={c.img} alt={c.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                  <AppImage src={c.img} alt={c.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 25vw"/>
                   <div className="absolute inset-0" style={{background:`${T.navy}38`}}/>
                   <div className="absolute top-3 left-3"><Chip color={c.col}>{c.cat}</Chip></div>
                   <div className="absolute bottom-3 left-3">
@@ -1297,7 +1428,7 @@ function PackagesPage({ go }:{go:(p:Page)=>void}){
           <div className="rounded-2xl px-6 py-5 flex flex-wrap gap-x-8 gap-y-2 items-center justify-center"
             style={{background:`${T.blue}08`,border:`1px solid ${T.blue}20`}}>
             <span style={{fontFamily:FONT,fontWeight:700,fontSize:12,color:T.blue}}>ℹ Important Notes</span>
-            {["Minimum 3-month commitment recommended","Ad spend is separate","Paid tools & software fees are separate","Results vary by market, budget & competition"].map(n=>(
+            {["Minimum 3-month commitment recommended","Ad spend is separate","Recommendations depend on your goals, market, and stage.","Results vary by market, budget & competition"].map(n=>(
               <div key={n} className="flex items-center gap-1.5" style={{fontFamily:FONT,fontSize:12,color:T.muted}}>
                 <div className="w-1 h-1 rounded-full" style={{background:T.muted}}/>
                 {n}
@@ -1403,8 +1534,6 @@ function PackagesPage({ go }:{go:(p:Page)=>void}){
             <div className="relative rounded-3xl overflow-hidden px-10 py-16 text-center"
               style={{background:"rgba(255,255,255,.82)",backdropFilter:"blur(24px)",border:`1px solid rgba(255,255,255,.9)`,
                 boxShadow:"0 24px 80px rgba(10,19,48,.10)"}}>
-              {/* Gradient overlay strip */}
-              <div className="absolute top-0 left-0 right-0 h-1" style={{background:"linear-gradient(90deg,#FF4E45,#4361EE)"}}/>
               {/* Ambient glow */}
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full pointer-events-none"
                 style={{background:`linear-gradient(135deg,${T.red},${T.blue})`,filter:"blur(80px)",opacity:.1}}/>
@@ -1479,7 +1608,7 @@ function SolNum({ n }:{n:string}){
 // ── 1. WEB DESIGN — Split layout (content left, browser mockup right) ─────────
 function SolWeb({ go }:{go:(p:Page)=>void}){
   return(
-    <section id="web" className="py-24 px-6" style={{background:T.white}}>
+    <section id="web" className="ax-section-shell py-20 px-5 sm:px-6 lg:py-24" style={{background:T.white}}>
       <div className="max-w-[1280px] mx-auto grid lg:grid-cols-2 gap-16 items-center">
         {/* Left: content */}
         <motion.div initial={{opacity:0,x:-28}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{duration:.65}}>
@@ -1510,16 +1639,16 @@ function SolWeb({ go }:{go:(p:Page)=>void}){
             </div>
             {/* Website preview */}
             <div className="relative overflow-hidden" style={{height:320,background:"linear-gradient(160deg,#F0F4FF,#E8EEFF)"}}>
-              <img src="https://images.unsplash.com/photo-1547658719-da2b51169166?w=800&h=500&fit=crop&auto=format"
-                alt="Website preview" className="w-full h-full object-cover opacity-70"/>
+              <AppImage src="https://images.unsplash.com/photo-1547658719-da2b51169166?w=800&h=500&fit=crop&auto=format"
+                alt="Website preview" className="w-full h-full object-cover opacity-70" sizes="(max-width: 1024px) 100vw, 50vw"/>
               {/* Overlay UI elements */}
               <div className="absolute inset-0 flex flex-col p-6 gap-3">
-                <div className="rounded-xl px-4 py-3 w-56" style={{background:"rgba(255,255,255,.92)",backdropFilter:"blur(12px)"}}>
+                <div className="rounded-xl px-4 py-3 w-48 sm:w-56" style={{background:"rgba(255,255,255,.92)",backdropFilter:"blur(12px)"}}>
                   <div className="text-xs font-bold mb-1" style={{color:T.navy,fontFamily:FONT}}>Monthly Visitors</div>
                   <div className="text-2xl font-extrabold" style={{color:T.red,fontFamily:FONT}}>12,847</div>
                   <div className="text-xs" style={{color:T.muted,fontFamily:FONT}}>↑ +143% from last month</div>
                 </div>
-                <div className="ml-auto rounded-xl px-4 py-3 w-48" style={{background:"rgba(255,255,255,.92)",backdropFilter:"blur(12px)"}}>
+                <div className="ml-auto rounded-xl px-4 py-3 w-40 sm:w-48" style={{background:"rgba(255,255,255,.92)",backdropFilter:"blur(12px)"}}>
                   <div className="text-xs font-bold mb-1" style={{color:T.navy,fontFamily:FONT}}>Conv. Rate</div>
                   <div className="text-2xl font-extrabold" style={{color:"#22C55E",fontFamily:FONT}}>4.8%</div>
                 </div>
@@ -1528,7 +1657,7 @@ function SolWeb({ go }:{go:(p:Page)=>void}){
           </div>
           {/* Floating badge */}
           <motion.div animate={{y:[0,-8,0]}} transition={{duration:4,repeat:Infinity,ease:"easeInOut"}}
-            className="absolute -bottom-4 -left-6 rounded-2xl px-4 py-3 shadow-xl"
+            className="absolute -bottom-4 left-3 hidden rounded-2xl px-4 py-3 shadow-xl sm:block lg:-left-6"
             style={{background:T.white,border:`1px solid ${T.border}`}}>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{background:`${T.red}12`,color:T.red}}><Zap size={16}/></div>
@@ -1547,7 +1676,7 @@ function SolWeb({ go }:{go:(p:Page)=>void}){
 // ── 2. APP DEVELOPMENT — Dark navy feature card ────────────────────────────────
 function SolApp({ go }:{go:(p:Page)=>void}){
   return(
-    <section id="app" className="py-24 px-6 relative overflow-hidden" style={{background:T.navy}}>
+    <section id="app" className="ax-section-shell py-20 px-5 sm:px-6 lg:py-24 relative overflow-hidden" style={{background:T.navy}}>
       <Glow color={T.red} size={500} className="-top-40 left-1/4"/>
       <Glow color={T.blue} size={400} className="-bottom-20 right-1/4"/>
       <div className="absolute inset-0 pointer-events-none opacity-[.05]"
@@ -1556,7 +1685,7 @@ function SolApp({ go }:{go:(p:Page)=>void}){
       <div className="max-w-[1280px] mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
         {/* Left: phone mockups */}
         <motion.div initial={{opacity:0,x:-24}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{duration:.65}}
-          className="flex justify-center gap-4">
+          className="flex justify-center gap-3 sm:gap-4">
           {/* Tall phone */}
           <div className="relative">
             <div className="w-44 rounded-[32px] overflow-hidden shadow-2xl"
@@ -1565,8 +1694,8 @@ function SolApp({ go }:{go:(p:Page)=>void}){
                 <div className="w-16 h-1 rounded-full" style={{background:"rgba(255,255,255,.15)"}}/>
               </div>
               <div className="px-3 pb-3 flex flex-col gap-2">
-                <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=400&fit=crop&auto=format"
-                  alt="App screen" className="rounded-2xl w-full" style={{height:180,objectFit:"cover"}}/>
+                <AppImage src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=400&fit=crop&auto=format"
+                  alt="App screen" className="rounded-2xl w-full" style={{height:180,objectFit:"cover"}} sizes="(max-width: 640px) 176px, 300px"/>
                 <div className="rounded-xl p-2.5" style={{background:"rgba(255,255,255,.07)"}}>
                   <div className="text-xs font-bold text-white mb-1" style={{fontFamily:FONT}}>Active Users</div>
                   <div className="text-lg font-extrabold" style={{color:T.red,fontFamily:FONT}}>2,481</div>
@@ -1574,7 +1703,7 @@ function SolApp({ go }:{go:(p:Page)=>void}){
               </div>
             </div>
             <motion.div animate={{y:[0,-6,0]}} transition={{duration:3.5,repeat:Infinity}}
-              className="absolute -right-8 top-12 rounded-2xl px-3 py-2.5 shadow-xl"
+              className="absolute -right-8 top-12 hidden rounded-2xl px-3 py-2.5 shadow-xl md:block"
               style={{background:"rgba(255,255,255,.12)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,.15)"}}>
               <div className="text-xs font-bold text-white whitespace-nowrap" style={{fontFamily:FONT}}>★ 4.9 App Store</div>
             </motion.div>
@@ -1587,8 +1716,8 @@ function SolApp({ go }:{go:(p:Page)=>void}){
             </div>
             <div className="px-3">
               <div className="rounded-xl overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=200&h=200&fit=crop&auto=format"
-                  alt="App UI" className="w-full" style={{height:120,objectFit:"cover"}}/>
+                <AppImage src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=200&h=200&fit=crop&auto=format"
+                  alt="App UI" className="w-full" style={{height:120,objectFit:"cover"}} sizes="144px"/>
               </div>
               <div className="mt-2 rounded-lg p-2" style={{background:"rgba(255,255,255,.07)"}}>
                 <div className="flex gap-1">{[...Array(5)].map((_,j)=><div key={j} className="flex-1 h-1 rounded-full" style={{background:j<4?T.red:"rgba(255,255,255,.15)"}}/>)}</div>
@@ -1837,7 +1966,9 @@ function SolSaaS({ go }:{go:(p:Page)=>void}){
         {/* Top: centered heading + description */}
         <div className="text-center mb-14 max-w-2xl mx-auto">
           <SolNum n="05"/>
-          <Eyebrow text="SaaS Product Development"/>
+          <div className="flex justify-center">
+            <Eyebrow text="SaaS Product Development"/>
+          </div>
           <SH center>Turn ideas into scalable<br/><span style={{color:T.red}}>software products.</span></SH>
           <p className="mt-5 text-base leading-relaxed" style={{fontFamily:FONT,color:T.muted}}>
             From the initial concept to a production-ready SaaS platform — Axclade designs, engineers, and helps launch software products that attract users and generate recurring revenue.
@@ -1891,11 +2022,19 @@ function SolFinalCTA({ go }:{go:(p:Page)=>void}){
     <section className="py-24 px-6" style={{background:T.soft}}>
       <div className="max-w-[900px] mx-auto text-center">
         <motion.div initial={{opacity:0,scale:.97}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{duration:.6}}>
-          <div className="w-16 h-16 rounded-3xl mx-auto mb-6 flex items-center justify-center"
-            style={{background:`linear-gradient(135deg,${T.red},#4361EE)`,boxShadow:`0 0 40px ${T.red}45`}}>
-            <Cpu size={28} className="text-white"/>
+          <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+            <AppImage
+              src={axcladeFinalIcon}
+              alt="Axclade logo icon"
+              className="h-20 w-20 object-contain"
+              loading="eager"
+              decoding="sync"
+              style={{filter:`drop-shadow(0 0 28px ${T.red}35)`}}
+            />
           </div>
-          <Eyebrow text="Custom Solutions"/>
+          <div className="flex justify-center">
+            <Eyebrow text="Custom Solutions"/>
+          </div>
           <SH center>Need a custom digital solution?</SH>
           <p className="mt-5 text-base leading-relaxed max-w-lg mx-auto" style={{fontFamily:FONT,color:T.muted}}>
             For businesses that need something beyond a standard package — websites, apps, software, AI systems, or full SaaS platforms — Axclade delivers complete digital product development.
@@ -1909,10 +2048,12 @@ function SolFinalCTA({ go }:{go:(p:Page)=>void}){
             </BtnOutline>
           </div>
           {/* Solution type tags */}
-          <div className="mt-8 flex flex-wrap gap-2 justify-center">
+          <div
+            className="ax-no-scrollbar mt-8 flex flex-wrap justify-center gap-2 pb-1 lg:flex-nowrap"
+          >
             {["Websites","Mobile Apps","Custom Software","AI Automation","SaaS Products","CRM Systems","Booking Systems","Dashboards"].map(t=>(
               <span key={t} style={{fontFamily:FONT,fontWeight:600,fontSize:12,color:T.navy,
-                padding:"6px 14px",background:T.white,border:`1px solid ${T.border}`,borderRadius:99}}>{t}</span>
+                padding:"6px 14px",background:T.white,border:`1px solid ${T.border}`,borderRadius:99,whiteSpace:"nowrap"}}>{t}</span>
             ))}
           </div>
         </motion.div>
@@ -1983,18 +2124,22 @@ function SolHeroVisual(){
 
 function SolutionsHeroComposition(){
   return(
-    <div className="relative w-full h-[560px] flex items-center justify-center mt-8 lg:mt-0">
-      <Glow color={T.red} size={320} className="top-1/2 right-16 -translate-y-1/2"/>
-      <Glow color={T.blue} size={260} className="bottom-10 left-8"/>
+    <div className="relative mt-8 flex h-[340px] w-full items-center justify-center sm:h-[430px] lg:mt-0 lg:h-[560px]">
+      <Glow color={T.red} size={320} className="top-1/2 right-16 hidden -translate-y-1/2 sm:block"/>
+      <Glow color={T.blue} size={260} className="bottom-10 left-8 hidden sm:block"/>
       <motion.div
         initial={{opacity:0,scale:.96,y:14}}
         animate={{opacity:1,scale:1,y:0}}
         transition={{duration:.7,delay:.08}}
-        className="relative z-10 w-[130%] max-w-[1040px] -ml-[8%] pointer-events-none"
+        className="relative z-10 -ml-[2%] w-[114%] max-w-[1040px] pointer-events-none sm:-ml-[4%] sm:w-[122%] lg:-ml-[8%] lg:w-[130%]"
       >
-        <img
+        <AppImage
           src={solutionsHeroComposition}
           alt="Business growth solutions composition"
+          loading="eager"
+          fetchPriority="high"
+          decoding="sync"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 52vw"
           style={{
             width:"100%",
             objectFit:"contain",
@@ -2012,18 +2157,20 @@ function SolutionsPage({ go }:{go:(p:Page)=>void}){
   return(
     <>
       {/* Hero */}
-      <section className="pt-32 pb-16 px-6 relative overflow-hidden"
+      <section className="ax-section-shell relative overflow-hidden px-5 pb-16 pt-28 sm:px-6 sm:pt-32"
         style={{background:`linear-gradient(160deg,${T.soft} 0%,#EAEEf8 100%)`}}>
         <div className="max-w-[1280px] mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div initial={{opacity:0,x:-24}} animate={{opacity:1,x:0}} transition={{duration:.65}}>
-            <Chip color={T.red}><Sparkles size={10}/> Digital Solutions</Chip>
+          <motion.div initial={{opacity:0,x:-24}} animate={{opacity:1,x:0}} transition={{duration:.65}} className="text-center lg:text-left">
+            <div className="flex justify-center lg:justify-start">
+              <Chip color={T.red}><Sparkles size={10}/> Digital Solutions</Chip>
+            </div>
             <h1 style={{fontFamily:FONT,fontWeight:800,fontSize:"clamp(2.4rem,5vw,3.8rem)",color:T.navy,lineHeight:1.08,letterSpacing:"-.6px",marginTop:16}}>
               Advanced Digital Solutions For<br/><span style={{color:T.red}}>Businesses Ready To Scale</span>
             </h1>
             <p className="mt-5 text-lg leading-relaxed" style={{fontFamily:FONT,color:T.muted}}>
               Axclade provides custom digital systems that support marketing performance, operational efficiency, and long-term growth.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
               <BtnPrimary onClick={()=>{ go("contact"); window.scrollTo(0,0); }} large>
                 Discuss a Custom Project <ArrowRight size={14}/>
               </BtnPrimary>
@@ -2032,7 +2179,7 @@ function SolutionsPage({ go }:{go:(p:Page)=>void}){
               </BtnOutline>
             </div>
             {/* Jump links */}
-            <div className="mt-8 flex flex-wrap gap-2">
+            <div className="mt-8 flex flex-wrap justify-center gap-2 lg:justify-start">
               {[{label:"Web",href:"#web"},{label:"Apps",href:"#app"},{label:"Software",href:"#software"},{label:"AI Automation",href:"#ai"},{label:"SaaS",href:"#saas"}].map(l=>(
                 <a key={l.label} href={l.href}
                   className="text-xs font-bold px-3 py-1.5 rounded-full transition-all hover:opacity-70"
@@ -2244,7 +2391,8 @@ function IndustriesPage({ go }:{go:(p:Page)=>void}){
                 <div className={`grid lg:grid-cols-2 ${!isEven?"":""}`}>
                   {/* Image panel */}
                   <div className={`relative overflow-hidden ${!isEven?"lg:order-2":""}`} style={{minHeight:340}}>
-                    <img src={ind.img} alt={ind.name} className="w-full h-full object-cover absolute inset-0"
+                    <AppImage src={ind.img} alt={ind.name} className="w-full h-full object-cover absolute inset-0"
+                      sizes="(max-width: 1024px) 100vw, 50vw"
                       style={{filter:isHighlight?"brightness(.7)":"none"}}/>
                     <div className="absolute inset-0" style={{background:isHighlight?`${ind.col}28`:`${T.navy}30`}}/>
 
@@ -3037,7 +3185,8 @@ function CaseStudiesPage({ go }:{go:(p:Page)=>void}){
 
                   {/* Image */}
                   <div className="relative min-h-[360px] overflow-hidden">
-                    <img src={c.img} alt={c.title} className="w-full h-full object-cover absolute inset-0"
+                    <AppImage src={c.img} alt={c.title} className="w-full h-full object-cover absolute inset-0"
+                      sizes="(max-width: 1024px) 100vw, 50vw"
                       style={{filter:"brightness(.55)"}}/>
                     {/* Metric grid overlay */}
                     <div className="absolute inset-0 flex flex-col justify-end p-8">
@@ -3130,7 +3279,8 @@ function CaseStudiesPage({ go }:{go:(p:Page)=>void}){
 
                     {/* Image */}
                     <div className="relative overflow-hidden" style={{height:200,background:"#F5F7FB"}}>
-                      <img src={c.img} alt={c.title}
+                      <AppImage src={c.img} alt={c.title}
+                        sizes="(max-width: 1024px) 100vw, 33vw"
                         className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105"/>
                       <div className="absolute inset-0" style={{background:`${T.navy}32`}}/>
 
@@ -3264,9 +3414,6 @@ function CaseStudiesPage({ go }:{go:(p:Page)=>void}){
         <div className="max-w-[860px] mx-auto text-center">
           <motion.div initial={{opacity:0,scale:.97}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{duration:.6}}>
             <div className="relative rounded-3xl overflow-hidden px-10 py-16" style={{background:T.white,border:`1px solid ${T.border}`,boxShadow:"0 16px 60px rgba(10,19,48,.08)"}}>
-              {/* Red gradient accent top */}
-              <div className="absolute top-0 left-0 right-0 h-1" style={{background:`linear-gradient(90deg,${T.red},#4361EE)`}}/>
-
               <div className="w-14 h-14 rounded-2xl mx-auto mb-6 flex items-center justify-center"
                 style={{background:`${T.red}10`,border:`1px solid ${T.red}20`}}>
                 <Rocket size={24} style={{color:T.red}}/>
@@ -3372,10 +3519,12 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
             <div className="relative">
               {/* Mark */}
               <div className="relative w-56 h-56 flex items-center justify-center">
-                <img
+                <AppImage
                   src={axcladeFinalIcon}
                   alt="Axclade final icon"
                   className="w-full h-full object-contain"
+                  loading="eager"
+                  decoding="sync"
                   style={{filter:"none"}}
                 />
               </div>
@@ -3645,7 +3794,6 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
               className="flex flex-col gap-5">
               <div className="relative rounded-3xl p-10 flex-1 overflow-hidden"
                 style={{background:T.soft,border:`1px solid ${T.border}`}}>
-                <div className="absolute top-0 left-0 right-0 h-1" style={{background:`linear-gradient(90deg,${T.red},#4361EE)`}}/>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
                   style={{background:`${T.blue}12`,border:`1px solid ${T.blue}20`}}>
                   <Rocket size={24} style={{color:T.blue}}/>
@@ -3695,8 +3843,6 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
                 whileHover={{y:-6,scale:1.02}}
                 className="relative rounded-3xl p-7 flex flex-col gap-4 overflow-hidden"
                 style={{background:T.white,border:`1px solid ${T.border}`,boxShadow:"0 6px 32px rgba(10,19,48,.07)"}}>
-                {/* Color accent top */}
-                <div className="h-0.5 absolute top-0 left-6 right-6 rounded-full" style={{background:v.col}}/>
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{background:`${v.col}12`,color:v.col}}>
                   {v.icon}
                 </div>
@@ -3726,10 +3872,12 @@ function AboutPage({ go }:{go:(p:Page)=>void}){
               <div className="relative z-10">
                 {/* Brand mark small */}
                 <div className="w-fit mx-auto mb-8">
-                  <img
+                  <AppImage
                     src={axcladeIcon}
                     alt="Axclade icon"
                     className="h-14 w-14 object-contain"
+                    loading="eager"
+                    decoding="sync"
                     style={{filter:`drop-shadow(0 10px 24px ${T.red}22)`}}
                   />
                 </div>
@@ -3995,9 +4143,6 @@ function ContactPage(){
                   style={{background:"rgba(255,255,255,.85)",backdropFilter:"blur(20px)",
                     border:`1px solid rgba(255,255,255,.9)`,boxShadow:"0 20px 72px rgba(10,19,48,.10)"}}>
 
-                  {/* Red top accent */}
-                  <div className="h-1 w-full" style={{background:`linear-gradient(90deg,${T.red},#4361EE)`}}/>
-
                   <div className="p-14 text-center flex flex-col items-center">
                     {/* Animated success mark */}
                     <motion.div initial={{scale:.5,opacity:0}} animate={{scale:1,opacity:1}} transition={{duration:.5,type:"spring"}}
@@ -4059,9 +4204,6 @@ function ContactPage(){
                   className="rounded-3xl overflow-hidden"
                   style={{background:"rgba(255,255,255,.85)",backdropFilter:"blur(20px)",
                     border:`1px solid rgba(255,255,255,.9)`,boxShadow:"0 20px 72px rgba(10,19,48,.10)"}}>
-
-                  {/* Red gradient top accent */}
-                  <div className="h-1 w-full" style={{background:`linear-gradient(90deg,${T.red},#4361EE)`}}/>
 
                   <div className="p-8 lg:p-10">
                     <div className="flex items-start justify-between gap-4 mb-8">
@@ -4225,28 +4367,6 @@ function useIsMobile(bp=768){
 }
 
 // ─── Scroll-to-top button ─────────────────────────────────────────────────────
-function ScrollToTop(){
-  const y=useScrollY();
-  const visible=y>600;
-  return(
-    <AnimatePresence>
-      {visible&&(
-        <motion.button
-          initial={{opacity:0,scale:.8,y:8}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.8,y:8}}
-          transition={{duration:.22}}
-          onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
-          aria-label="Scroll to top"
-          className="hidden lg:flex fixed bottom-8 right-8 z-50 w-11 h-11 rounded-full items-center justify-center transition-all hover:scale-110"
-          style={{background:T.navy,boxShadow:`0 4px 20px ${T.navy}40`,color:"#fff"}}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 12V4M8 4L4 8M8 4l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </motion.button>
-      )}
-    </AnimatePresence>
-  );
-}
-
 // ─── Page-progress bar ────────────────────────────────────────────────────────
 function ProgressBar(){
   const y=useScrollY();
@@ -4268,9 +4388,182 @@ function ProgressBar(){
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOT
 // ═══════════════════════════════════════════════════════════════════════════════
+function CustomCursor(){
+  const x = useMotionValue(-100);
+  const y = useMotionValue(-100);
+  const scale = useMotionValue(1);
+  const opacity = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 520, damping: 34, mass: 0.4 });
+  const springY = useSpring(y, { stiffness: 520, damping: 34, mass: 0.4 });
+  const springScale = useSpring(scale, { stiffness: 320, damping: 24, mass: 0.5 });
+  const springOpacity = useSpring(opacity, { stiffness: 260, damping: 24, mass: 0.5 });
+  const [enabled, setEnabled] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+  const interactiveRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(pointer: fine)");
+    const updateEnabled = () => setEnabled(media.matches);
+    updateEnabled();
+
+    const isInteractive = (element: EventTarget | null) => {
+      let node = element instanceof HTMLElement ? element : null;
+      while (node) {
+        const tag = node.tagName.toLowerCase();
+        if (
+          tag === "a" ||
+          tag === "button" ||
+          tag === "summary" ||
+          node.dataset.cursor === "interactive" ||
+          node.classList.contains("cursor-pointer") ||
+          node.classList.contains("ax-card") ||
+          node.classList.contains("ax-service-card") ||
+          node.classList.contains("ax-pricing-card") ||
+          node.classList.contains("ax-pricing-card-pop")
+        ) {
+          return true;
+        }
+
+        const role = node.getAttribute("role");
+        const tabIndex = node.getAttribute("tabindex");
+        if (role === "button" || role === "link" || (tabIndex !== null && tabIndex !== "-1")) {
+          return true;
+        }
+
+        if (window.getComputedStyle(node).cursor === "pointer") {
+          return true;
+        }
+
+        node = node.parentElement;
+      }
+      return false;
+    };
+
+    const syncInteractive = (active: boolean) => {
+      if (interactiveRef.current !== active) {
+        interactiveRef.current = active;
+        setInteractive(active);
+      }
+      scale.set(active ? 1.8 : 1);
+    };
+
+    const handleMove = (event: MouseEvent) => {
+      x.set(event.clientX);
+      y.set(event.clientY);
+      opacity.set(1);
+      syncInteractive(isInteractive(event.target));
+    };
+
+    const handleLeave = () => {
+      opacity.set(0);
+      scale.set(1);
+    };
+
+    const handleDown = () => scale.set(interactiveRef.current ? 1.45 : 0.88);
+    const handleUp = () => scale.set(interactiveRef.current ? 1.8 : 1);
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", updateEnabled);
+    }
+    window.addEventListener("mousemove", handleMove, { passive: true });
+    window.addEventListener("mousedown", handleDown, { passive: true });
+    window.addEventListener("mouseup", handleUp, { passive: true });
+    document.addEventListener("mouseleave", handleLeave);
+
+    return () => {
+      if (typeof media.removeEventListener === "function") {
+        media.removeEventListener("change", updateEnabled);
+      }
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mousedown", handleDown);
+      window.removeEventListener("mouseup", handleUp);
+      document.removeEventListener("mouseleave", handleLeave);
+    };
+  }, [opacity, scale, x, y]);
+
+  if (!enabled) return null;
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="ax-custom-cursor"
+      style={{ x: springX, y: springY, scale: springScale, opacity: springOpacity }}
+    >
+      <motion.div
+        className="ax-custom-cursor-ring"
+        animate={{ width: interactive ? 30 : 22, height: interactive ? 30 : 22 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      />
+      <motion.div
+        className="ax-custom-cursor-dot"
+        style={{ x: "-50%", y: "-50%" }}
+        animate={{
+          scale: interactive ? 1.2 : 1,
+          boxShadow: interactive ? "0 0 18px rgba(255,78,69,.7)" : "0 0 14px rgba(255,78,69,.45)",
+        }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      />
+    </motion.div>
+  );
+}
+
 export default function App(){
-  const [page,setPage]=useState<Page>("home");
-  const go=(p:Page)=>{ setPage(p); window.scrollTo(0,0); };
+  const [page,setPage]=useState<Page>(() => (typeof window !== "undefined" ? hashToPage(window.location.hash, "home") : "home"));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncFromHash = () => setPage((current) => hashToPage(window.location.hash, current));
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const meta = PAGE_META[page];
+    const pageUrl = `${SITE_URL}${meta.path === "/" ? "/" : pageToHash(page)}`;
+
+    document.title = meta.title;
+
+    const setMetaTag = (selector: string, content: string, attribute = "content") => {
+      const element = document.head.querySelector<HTMLMetaElement>(selector);
+      if (!element) return;
+      element.setAttribute(attribute, content);
+    };
+
+    setMetaTag('meta[name="description"]', meta.description);
+    setMetaTag('meta[property="og:title"]', meta.title);
+    setMetaTag('meta[property="og:description"]', meta.description);
+    setMetaTag('meta[property="og:url"]', pageUrl);
+    setMetaTag('meta[name="twitter:title"]', meta.title);
+    setMetaTag('meta[name="twitter:description"]', meta.description);
+
+    const canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    canonical?.setAttribute("href", pageUrl);
+  }, [page]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const timer = window.setTimeout(() => {
+      void import("./components/chatbot/AxcladeChatbot");
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const go = (p:Page) => {
+    const nextHash = pageToHash(p);
+    if (typeof window !== "undefined" && window.location.hash !== nextHash) {
+      window.location.hash = nextHash;
+    } else {
+      setPage(p);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const PAGES:Record<Page,React.ReactNode>={
     home:          <HomePage go={go}/>,
     packages:      <PackagesPage go={go}/>,
@@ -4282,8 +4575,10 @@ export default function App(){
     contact:       <ContactPage/>,
   };
   return(
-    <div style={{fontFamily:FONT}} className="overflow-x-hidden">
+    <div style={{fontFamily:FONT}} className="overflow-x-hidden bg-white text-[#0A1330]">
       <style>{GLOBAL_CSS}</style>
+      <style>{CURSOR_CSS}</style>
+      <CustomCursor/>
       <ProgressBar/>
       <Nav current={page} go={go}/>
       <main role="main">
@@ -4299,6 +4594,9 @@ export default function App(){
         </AnimatePresence>
       </main>
       <Footer go={go}/>
+      <Suspense fallback={null}>
+        <LazyAxcladeChatbot currentPage={page} onNavigate={go} />
+      </Suspense>
 
       {/* WhatsApp FAB — mobile only */}
       <motion.a
@@ -4317,7 +4615,6 @@ export default function App(){
       </motion.a>
 
       {/* Scroll-to-top button — desktop */}
-      <ScrollToTop/>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import React from "react";
-import { motion } from "motion/react";
+import React, { useEffect, useRef, useState } from "react";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 
 import heroCluster from "../../../Public/Assets/axclade-hero/cluster-composition.png";
+import googleLogo from "../../../Public/Assets/axclade-hero/logos/google_PNG19644.png";
+import metaLogo from "../../../Public/Assets/axclade-hero/logos/Meta.png";
+import hubspotLogo from "../../../Public/Assets/axclade-hero/logos/HubSpot_Logo.png";
+import shopifyLogo from "../../../Public/Assets/axclade-hero/logos/Shopify_logo.svg.png";
+import webflowLogo from "../../../Public/Assets/axclade-hero/logos/Webflow.png";
+import awsLogo from "../../../Public/Assets/axclade-hero/logos/AWS.png";
 
 const FONT = "'Plus Jakarta Sans', sans-serif";
 
@@ -37,20 +43,20 @@ const services = [
 ] as const;
 
 const trustLogos = [
-  { name: "Google", src: "/Assets/axclade-hero/logos/google_PNG19644.png", height: 18, maxWidth: 92 },
-  { name: "Meta", src: "/Assets/axclade-hero/logos/Meta.png", height: 18, maxWidth: 104 },
-  { name: "HubSpot", src: "/Assets/axclade-hero/logos/HubSpot_Logo.png", height: 18, maxWidth: 104 },
-  { name: "Shopify", src: "/Assets/axclade-hero/logos/Shopify_logo.svg.png", height: 24, maxWidth: 112 },
-  { name: "Webflow", src: "/Assets/axclade-hero/logos/Webflow.png", height: 18, maxWidth: 108 },
-  { name: "AWS", src: "/Assets/axclade-hero/logos/AWS.png", height: 26, maxWidth: 70 },
+  { name: "Google", src: googleLogo, height: 20, maxWidth: 102 },
+  { name: "Meta", src: metaLogo, height: 22, maxWidth: 116 },
+  { name: "HubSpot", src: hubspotLogo, height: 22, maxWidth: 114 },
+  { name: "Shopify", src: shopifyLogo, height: 24, maxWidth: 100 },
+  { name: "Webflow", src: webflowLogo, height: 22, maxWidth: 122 },
+  { name: "AWS", src: awsLogo, height: 28, maxWidth: 88 },
 ] as const;
 
 const cards = [
-  { key: "leads", pos: { top: "-24%", left: "8%" }, width: 176 },
-  { key: "analytics", pos: { top: "-14%", right: "-6%" }, width: 150 },
-  { key: "satisfaction", pos: { top: "14%", left: "-16%" }, width: 166 },
+  { key: "leads", pos: { top: "-24%", left: "14%" }, width: 186, zClass: "z-[6]" },
+  { key: "analytics", pos: { top: "-14%", right: "-6%" }, width: 170 },
+  { key: "satisfaction", pos: { top: "18%", left: "-11%" }, width: 166 },
   { key: "projects", pos: { bottom: "13%", left: "7%" }, width: 164 },
-  { key: "rating", pos: { bottom: "15%", right: "-7%" }, width: 172 },
+  { key: "rating", pos: { bottom: "15%", right: "-3%" }, width: 172 },
 ] as const;
 
 type AxcladeHomeHeroProps = {
@@ -68,19 +74,115 @@ const dragCardProps = {
   style: { cursor: "grab" as const },
 };
 
+function TiltCard({
+  children,
+  className,
+  style,
+  initial,
+  animate,
+  transition,
+  pointer,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  initial?: Record<string, number>;
+  animate?: Record<string, number>;
+  transition?: Record<string, number | string>;
+  pointer?: { x: number; y: number; active: boolean };
+}) {
+  const reduceMotion = useReducedMotion();
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const scale = useMotionValue(1);
+  const glowX = useMotionValue(50);
+  const glowY = useMotionValue(50);
+
+  const springRotateX = useSpring(rotateX, { stiffness: 180, damping: 18, mass: 0.8 });
+  const springRotateY = useSpring(rotateY, { stiffness: 180, damping: 18, mass: 0.8 });
+  const springScale = useSpring(scale, { stiffness: 220, damping: 18, mass: 0.8 });
+  const springGlowX = useSpring(glowX, { stiffness: 160, damping: 20, mass: 0.7 });
+  const springGlowY = useSpring(glowY, { stiffness: 160, damping: 20, mass: 0.7 });
+
+  const resetTilt = () => {
+    rotateX.set(0);
+    rotateY.set(0);
+    scale.set(1);
+    glowX.set(50);
+    glowY.set(50);
+  };
+
+  useEffect(() => {
+    if (reduceMotion || !cardRef.current || !pointer?.active) {
+      resetTilt();
+      return;
+    }
+
+    const bounds = cardRef.current.getBoundingClientRect();
+    const px = (pointer.x - bounds.left) / bounds.width;
+    const py = (pointer.y - bounds.top) / bounds.height;
+    const clampedX = Math.max(0, Math.min(1, px));
+    const clampedY = Math.max(0, Math.min(1, py));
+    const tiltX = (0.5 - clampedY) * 10;
+    const tiltY = (clampedX - 0.5) * 10;
+
+    rotateX.set(tiltX);
+    rotateY.set(tiltY);
+    scale.set(px >= 0 && px <= 1 && py >= 0 && py <= 1 ? 1.03 : 1.012);
+    glowX.set(clampedX * 100);
+    glowY.set(clampedY * 100);
+  }, [glowX, glowY, pointer, reduceMotion, rotateX, rotateY, scale]);
+
+  return (
+    <motion.div
+      ref={cardRef}
+      initial={initial}
+      animate={animate}
+      transition={transition}
+      {...dragCardProps}
+      onPointerLeave={resetTilt}
+      onPointerCancel={resetTilt}
+      onDragStart={() => scale.set(1.04)}
+      onDragEnd={resetTilt}
+      className={className}
+      style={{
+        ...dragCardProps.style,
+        ...style,
+        rotateX: springRotateX,
+        rotateY: springRotateY,
+        scale: springScale,
+        transformPerspective: 1200,
+        transformStyle: "preserve-3d",
+        willChange: "transform",
+      }}
+    >
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[24px]"
+        style={{
+          background: `radial-gradient(circle at ${springGlowX}% ${springGlowY}%, rgba(255,255,255,.72), rgba(255,255,255,0) 58%)`,
+          opacity: 0.7,
+          mixBlendMode: "screen",
+        }}
+      />
+      <div style={{ transform: "translateZ(0.01px)" }}>{children}</div>
+    </motion.div>
+  );
+}
+
 function TrustLogo({ logo }: { logo: (typeof trustLogos)[number] }) {
   return (
     <div
-      className="flex items-center justify-center"
+      className="flex shrink-0 items-center justify-center"
       style={{ height: 34, minWidth: logo.maxWidth, maxWidth: logo.maxWidth }}
     >
       <img
         src={logo.src}
         alt={logo.name}
-        style={{ height: logo.height, maxWidth: logo.maxWidth, width: "auto", objectFit: "contain", display: "block" }}
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
-        }}
+        loading="lazy"
+        decoding="async"
+        style={{ height: logo.height, maxWidth: logo.maxWidth, width: "100%", objectFit: "contain", objectPosition: "center", display: "block", opacity: 1 }}
       />
     </div>
   );
@@ -112,17 +214,27 @@ function GlassCard({
   );
 }
 
-function VisualCard({ card, index }: { card: (typeof cards)[number]; index: number }) {
+function VisualCard({
+  card,
+  index,
+  pointer,
+}: {
+  card: (typeof cards)[number];
+  index: number;
+  pointer: { x: number; y: number; active: boolean };
+}) {
+  const motionProps = {
+    initial: { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.42, delay: 0.06 + index * 0.05 },
+    className: `absolute ${card.zClass ?? "z-[8]"}`,
+    style: { ...card.pos, width: card.width },
+    pointer,
+  } as const;
+
   if (card.key === "leads") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.06 + index * 0.05 }}
-        {...dragCardProps}
-        className="absolute z-[8]"
-        style={{ ...dragCardProps.style, ...card.pos, width: card.width }}
-      >
+      <TiltCard {...motionProps}>
         <GlassCard className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -139,20 +251,13 @@ function VisualCard({ card, index }: { card: (typeof cards)[number]; index: numb
             </svg>
           </div>
         </GlassCard>
-      </motion.div>
+      </TiltCard>
     );
   }
 
   if (card.key === "analytics") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.06 + index * 0.05 }}
-        {...dragCardProps}
-        className="absolute z-[8]"
-        style={{ ...dragCardProps.style, ...card.pos, width: card.width }}
-      >
+      <TiltCard {...motionProps}>
         <GlassCard className="p-2.5">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -176,20 +281,13 @@ function VisualCard({ card, index }: { card: (typeof cards)[number]; index: numb
             ))}
           </div>
         </GlassCard>
-      </motion.div>
+      </TiltCard>
     );
   }
 
   if (card.key === "satisfaction") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.06 + index * 0.05 }}
-        {...dragCardProps}
-        className="absolute z-[8]"
-        style={{ ...dragCardProps.style, ...card.pos, width: card.width }}
-      >
+      <TiltCard {...motionProps}>
         <GlassCard className="p-3.5">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: "rgba(79,107,255,.10)", color: T.blue }}>
@@ -206,20 +304,13 @@ function VisualCard({ card, index }: { card: (typeof cards)[number]; index: numb
             </div>
           </div>
         </GlassCard>
-      </motion.div>
+      </TiltCard>
     );
   }
 
   if (card.key === "projects") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.06 + index * 0.05 }}
-        {...dragCardProps}
-        className="absolute z-[8]"
-        style={{ ...dragCardProps.style, ...card.pos, width: card.width }}
-      >
+      <TiltCard {...motionProps}>
         <GlassCard className="p-3.5">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-2xl" style={{ background: "rgba(255,78,69,.10)", color: T.red }}>
@@ -231,19 +322,12 @@ function VisualCard({ card, index }: { card: (typeof cards)[number]; index: numb
             </div>
           </div>
         </GlassCard>
-      </motion.div>
+      </TiltCard>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.42, delay: 0.06 + index * 0.05 }}
-      {...dragCardProps}
-      className="absolute z-[8]"
-      style={{ ...dragCardProps.style, ...card.pos, width: card.width }}
-    >
+    <TiltCard {...motionProps}>
       <GlassCard className="p-3.5">
         <div className="flex items-start gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: "rgba(79,107,255,.12)", color: T.blue }}>
@@ -260,28 +344,78 @@ function VisualCard({ card, index }: { card: (typeof cards)[number]; index: numb
           </div>
         </div>
       </GlassCard>
-    </motion.div>
+    </TiltCard>
   );
 }
 
 function HeroVisual() {
+  const reduceMotion = useReducedMotion();
+  const [pointer, setPointer] = useState({ x: 0, y: 0, active: false });
+  const frameRef = useRef<number | null>(null);
+  const latestPointerRef = useRef(pointer);
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, []);
+
+  const schedulePointerUpdate = () => {
+    if (frameRef.current !== null) {
+      return;
+    }
+
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      setPointer((current) => {
+        const next = latestPointerRef.current;
+        if (current.x === next.x && current.y === next.y && current.active === next.active) {
+          return current;
+        }
+        return next;
+      });
+    });
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (reduceMotion) {
+      return;
+    }
+
+    latestPointerRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      active: true,
+    };
+    schedulePointerUpdate();
+  };
+
+  const handleMouseLeave = () => {
+    latestPointerRef.current = {
+      ...latestPointerRef.current,
+      active: false,
+    };
+    schedulePointerUpdate();
+  };
+
   return (
-    <div className="relative mx-auto w-full max-w-[800px]" style={{ height: "min(730px, 68vh)" }}>
+    <div
+      className="relative mx-auto w-full max-w-[800px]"
+      style={{ height: "min(730px, 68vh)" }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="absolute inset-[6%] rounded-full border border-dashed opacity-60" style={{ borderColor: T.ringBlue }} />
       <div className="absolute inset-[17%] rounded-full border border-dashed opacity-50" style={{ borderColor: T.ringRed }} />
       <div className="absolute inset-[29%] rounded-full border border-dashed opacity-42" style={{ borderColor: T.ringBlue }} />
-
-      <div className="absolute left-[11%] top-[34%] h-14 w-14 rounded-full" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.9), rgba(210,220,255,.32))", border: "1px solid rgba(255,255,255,.9)", boxShadow: "0 18px 34px rgba(79,107,255,.11)" }} />
-      <div className="absolute right-[17%] top-[2%] h-16 w-16 rounded-full" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.92), rgba(210,220,255,.28))", border: "1px solid rgba(255,255,255,.88)", boxShadow: "0 18px 34px rgba(79,107,255,.12)" }} />
-      <div className="absolute right-[4%] top-[42%] h-14 w-14 rounded-full" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.9), rgba(210,220,255,.28))", border: "1px solid rgba(255,255,255,.88)", boxShadow: "0 18px 34px rgba(79,107,255,.12)" }} />
-      <div className="absolute left-[18%] bottom-[15%] h-14 w-14 rounded-full" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.9), rgba(210,220,255,.28))", border: "1px solid rgba(255,255,255,.88)", boxShadow: "0 18px 34px rgba(79,107,255,.12)" }} />
-      <div className="absolute right-[11%] bottom-[5%] h-24 w-24 rounded-full" style={{ background: "linear-gradient(160deg, rgba(255,255,255,.92), rgba(210,220,255,.28))", border: "1px solid rgba(255,255,255,.88)", boxShadow: "0 18px 34px rgba(79,107,255,.12)" }} />
 
       <div className="absolute right-[12%] top-[23%] h-[210px] w-[210px] rounded-full" style={{ background: "radial-gradient(circle, rgba(255,78,69,.10), rgba(255,78,69,0) 70%)", filter: "blur(14px)" }} />
       <div className="absolute bottom-[20%] right-[21%] h-[220px] w-[220px] rounded-full" style={{ background: "radial-gradient(circle, rgba(79,107,255,.18), rgba(79,107,255,0) 70%)", filter: "blur(18px)" }} />
 
       {cards.map((card, index) => (
-        <VisualCard key={card.key} card={card} index={index} />
+        <VisualCard key={card.key} card={card} index={index} pointer={pointer} />
       ))}
 
       <div className="absolute left-[8%] right-[2%] bottom-[10%] h-[110px] z-[6]" style={{ background: "linear-gradient(90deg, rgba(8,25,63,0) 0%, rgba(8,25,63,.05) 16%, rgba(8,25,63,.11) 38%, rgba(8,25,63,.1) 63%, rgba(8,25,63,.04) 82%, rgba(8,25,63,0) 100%)", filter: "blur(32px)", opacity: 0.26 }} />
@@ -291,12 +425,18 @@ function HeroVisual() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.1 }}
-        className="absolute bottom-[-7%] right-[14%] z-[7] w-[76%] min-w-[400px] max-w-[595px] pointer-events-none"
+        className="pointer-events-none absolute bottom-[-7%] right-[14%] z-[12] w-[76%] min-w-[400px] max-w-[595px]"
       >
         <img
           src={heroCluster}
           alt="3D social media hand composition"
-          style={{ width: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 34px 52px rgba(8,25,63,.12))" }}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+          style={{ width: "100%", display: "block", opacity: 1, objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 34px 52px rgba(8,25,63,.12))", willChange: "transform" }}
+          onLoad={(event) => {
+            event.currentTarget.classList.add("loaded");
+          }}
         />
       </motion.div>
     </div>
@@ -311,6 +451,25 @@ export default function AxcladeHomeHero({ onPrimaryAction, onSecondaryAction }: 
         background: "linear-gradient(180deg, #FFFFFF 0%, #F7F8FC 56%, #EEF2F8 100%)",
       }}
     >
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[-12%] opacity-80"
+        animate={{
+          x: ["-2%", "2%", "-1%"],
+          y: ["0%", "2%", "-1%"],
+          scale: [1, 1.05, 1],
+        }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          background: `
+            radial-gradient(circle at 18% 24%, rgba(79,107,255,.14), rgba(79,107,255,0) 34%),
+            radial-gradient(circle at 82% 18%, rgba(255,78,69,.12), rgba(255,78,69,0) 30%),
+            radial-gradient(circle at 62% 72%, rgba(139,92,246,.10), rgba(139,92,246,0) 28%),
+            radial-gradient(circle at 28% 82%, rgba(255,192,120,.08), rgba(255,192,120,0) 26%)
+          `,
+          filter: "blur(26px)",
+        }}
+      />
       <div className="axclade-hero-dotmask absolute inset-0 pointer-events-none opacity-55" />
       <div className="absolute -left-24 top-28 h-[340px] w-[340px] rounded-full" style={{ background: "radial-gradient(circle, rgba(79,107,255,.14), rgba(79,107,255,0) 70%)", filter: "blur(14px)" }} />
       <div className="absolute right-[-60px] top-[100px] h-[300px] w-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(255,78,69,.11), rgba(255,78,69,0) 68%)", filter: "blur(12px)" }} />
@@ -329,7 +488,7 @@ export default function AxcladeHomeHero({ onPrimaryAction, onSecondaryAction }: 
                 fontFamily: FONT,
                 fontWeight: 800,
                 fontSize: "clamp(2.5rem, 4.45vw, 4.25rem)",
-                lineHeight: 0.9,
+                lineHeight: 0.98,
                 letterSpacing: "-2.8px",
                 color: T.navy,
               }}
@@ -357,7 +516,7 @@ export default function AxcladeHomeHero({ onPrimaryAction, onSecondaryAction }: 
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onPrimaryAction}
-                className="inline-flex h-[56px] min-w-[304px] items-center justify-center gap-2 rounded-[17px] px-5.5 text-white"
+                className="inline-flex h-[56px] w-full items-center justify-center gap-2 rounded-[17px] px-5.5 text-white sm:w-auto sm:min-w-[304px]"
                 style={{ fontFamily: FONT, fontWeight: 700, fontSize: 13, background: `linear-gradient(135deg, ${T.red} 0%, ${T.red2} 100%)`, boxShadow: "0 22px 40px rgba(255,78,69,.28)", whiteSpace: "nowrap" }}
               >
                 Book Free Growth Consultation <ArrowRight size={16} />
@@ -367,7 +526,7 @@ export default function AxcladeHomeHero({ onPrimaryAction, onSecondaryAction }: 
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onSecondaryAction}
-                className="inline-flex h-[56px] min-w-[282px] items-center justify-center gap-2 rounded-[17px] px-5.5"
+                className="inline-flex h-[56px] w-full items-center justify-center gap-2 rounded-[17px] px-5.5 sm:w-auto sm:min-w-[282px]"
                 style={{ fontFamily: FONT, fontWeight: 700, fontSize: 13, color: T.navy, background: "rgba(255,255,255,.94)", border: `1px solid ${T.border}`, boxShadow: "0 16px 34px rgba(8,25,63,.08)", whiteSpace: "nowrap" }}
               >
                 Explore Growth Packages <ArrowUpRight size={16} />
@@ -444,7 +603,7 @@ export default function AxcladeHomeHero({ onPrimaryAction, onSecondaryAction }: 
                 <span style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: T.navy }}>Trusted by leading brands</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:flex-nowrap lg:justify-center lg:px-3">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 lg:flex-1 lg:flex-nowrap lg:justify-center lg:px-3">
                 {trustLogos.map((logo) => (
                   <TrustLogo key={logo.name} logo={logo} />
                 ))}
